@@ -1,0 +1,1396 @@
+% ============================================================================
+% matematica2.tex - Mathematical Foundations + C Implementation
+%
+% Based exclusively on:
+%   "Procedural Elements for Computer Graphics" (2nd edition)
+%   David F. Rogers
+%
+% Compile with: pdflatex matematica2.tex (run twice for TOC)
+% ============================================================================
+
+\documentclass[12pt, a4paper]{article}
+
+% ---- Packages ----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{framed}
+
+\geometry{margin=2.5cm}
+
+% ---- Code listing configuration ----
+\lstdefinestyle{ccode}{
+    language=C,
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{red!70!black},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    frame=single,
+    breaklines=true,
+    tabsize=4,
+    showstringspaces=false,
+    backgroundcolor=\color{gray!5},
+    rulecolor=\color{gray!50},
+    xleftmargin=1.5em,
+    framexleftmargin=1em,
+}
+\lstset{style=ccode}
+
+% ---- Colored boxes using framed ----
+\definecolor{mathframe}{RGB}{60,80,160}
+\definecolor{codeframe}{RGB}{60,130,60}
+
+\newenvironment{mathbox}[1][]{%
+    \def\FrameCommand{\textcolor{mathframe}{\vrule width 3pt}\hspace{8pt}}%
+    \MakeFramed{\advance\hsize-\width\FrameRestore}%
+    \noindent\textcolor{mathframe}{\textbf{Mathematics}}\par\smallskip
+}{%
+    \endMakeFramed
+}
+
+\newcommand{\codeboxlabel}{}
+\newenvironment{codebox}[1][]{%
+    \renewcommand{\codeboxlabel}{#1}%
+    \def\FrameCommand{\textcolor{codeframe}{\vrule width 3pt}\hspace{8pt}}%
+    \MakeFramed{\advance\hsize-\width\FrameRestore}%
+    \noindent\textcolor{codeframe}{\textbf{C Implementation} \codeboxlabel}\par\smallskip
+}{%
+    \endMakeFramed
+}
+
+% ---- Header ----
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize Application and Math Concepts of Procedural Elements for Computer Graphics}
+\fancyhead[R]{\footnotesize Geovanne Gallinati}
+\fancyfoot[C]{\thepage}
+
+% ---- Title ----
+\title{%
+    \textbf{Application and Math Concepts of} \\[0.3em]
+    \textbf{Procedural Elements for Computer Graphics} \\[0.5em]
+    \large ASCII 3D Renderer in Pure C \\[0.3em]
+    \normalsize David F. Rogers, 2nd edition
+}
+\author{Geovanne Gallinati}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+    \href{https://github.com/geovannegallinati/Application-and-Math-Concepts-of-Procedural-Elements-for-Computer-Graphics}{GitHub Repository}
+\end{center}
+
+\tableofcontents
+\newpage
+
+% ============================================================================
+\section{Homogeneous Coordinates}
+\label{sec:homogeneous}
+% ============================================================================
+
+\begin{mathbox}
+Rogers (Chapters 2 and 5) defines points in \textbf{homogeneous coordinates}
+as 4-component vectors. A 3D point $(x, y, z)$ is represented as:
+
+\begin{equation}
+    \mathbf{P} = \begin{bmatrix} x & y & z & w \end{bmatrix}
+    \label{eq:homogeneous_point}
+\end{equation}
+
+where $w$ is the \textit{homogeneous coordinate}. The corresponding Cartesian point is:
+
+\begin{equation}
+    (X, Y, Z) = \left(\frac{x}{w}, \; \frac{y}{w}, \; \frac{z}{w}\right)
+    \label{eq:homogeneous_to_cartesian}
+\end{equation}
+
+By convention, we use $w = 1$ for points. In perspective projections,
+$w$ takes values other than 1, requiring \textit{perspective division}.
+\end{mathbox}
+
+\begin{codebox}[\texttt{matrix.h} / \texttt{matrix.c}]
+The data types that represent homogeneous coordinates:
+
+\begin{lstlisting}
+typedef struct {
+    double m[4][4];
+} Mat4;
+
+typedef struct {
+    double v[4];  /* v[0]=x, v[1]=y, v[2]=z, v[3]=w */
+} Vec4;
+
+typedef struct {
+    double x, y, z;
+} Vec3;
+\end{lstlisting}
+
+Creating a point with $w=1$ (default) and with explicit $w$:
+
+\begin{lstlisting}
+Vec4 vec4_create(double x, double y, double z)
+{
+    Vec4 v;
+    v.v[0] = x;
+    v.v[1] = y;
+    v.v[2] = z;
+    v.v[3] = 1.0;  /* w = 1 by default */
+    return v;
+}
+
+Vec4 vec4_create_w(double x, double y, double z, double w)
+{
+    Vec4 v;
+    v.v[0] = x;  v.v[1] = y;
+    v.v[2] = z;  v.v[3] = w;
+    return v;
+}
+\end{lstlisting}
+\end{codebox}
+
+\newpage
+\subsection{Row Vector Convention}
+
+\begin{mathbox}
+\textbf{Rogers uses row vectors with post-multiplication:}
+
+\begin{equation}
+    \mathbf{P'} = \mathbf{P} \cdot \mathbf{M}
+    \label{eq:rogers_convention}
+\end{equation}
+
+where $\mathbf{P}$ is a $1 \times 4$ row vector and $\mathbf{M}$ is a
+$4 \times 4$ matrix. This is \textbf{opposite} to OpenGL's convention
+($\mathbf{P'} = \mathbf{M} \cdot \mathbf{P}$).
+
+The translation terms are placed in the \textbf{last row} of the matrix.
+\end{mathbox}
+
+\begin{codebox}[\texttt{matrix.c}: \texttt{mat4\_transform\_point}]
+The row-vector $\times$ matrix multiplication $\mathbf{P'} = \mathbf{P} \cdot \mathbf{M}$:
+
+\begin{lstlisting}
+void mat4_transform_point(const Mat4 *M, const Vec4 *p, Vec4 *result)
+{
+    Vec4 temp;
+    int j, i;
+    for (j = 0; j < 4; j++)
+    {
+        temp.v[j] = 0.0;
+        for (i = 0; i < 4; i++)
+        {
+            temp.v[j] += p->v[i] * M->m[i][j];
+        }
+    }
+    *result = temp;
+}
+\end{lstlisting}
+
+Notice: the inner loop computes $P'_j = \sum_{i=0}^{3} P_i \cdot M_{ij}$,
+which is exactly the row-vector convention $\mathbf{P'} = \mathbf{P} \cdot \mathbf{M}$.
+\end{codebox}
+
+\subsection{House Vertices}
+
+\begin{mathbox}
+The house model uses 10 vertices in homogeneous coordinates. Examples:
+
+\begin{equation}
+    \mathbf{V}_0 = \begin{bmatrix} -1 & -1 & 1 & 1 \end{bmatrix} \quad \text{(front-left-bottom)}
+\end{equation}
+\begin{equation}
+    \mathbf{V}_8 = \begin{bmatrix} 0 & 2 & 1 & 1 \end{bmatrix} \quad \text{(front roof peak)}
+\end{equation}
+\end{mathbox}
+
+\begin{codebox}[\texttt{geometry.c}: \texttt{geometry\_init\_house}]
+\begin{lstlisting}
+void geometry_init_house(Model *model)
+{
+    /* Front face (z = +1) */
+    model->vertices[0] = vec4_create(-1.0, -1.0,  1.0);
+    model->vertices[1] = vec4_create( 1.0, -1.0,  1.0);
+    model->vertices[2] = vec4_create( 1.0,  1.0,  1.0);
+    model->vertices[3] = vec4_create(-1.0,  1.0,  1.0);
+
+    /* Back face (z = -1) */
+    model->vertices[4] = vec4_create(-1.0, -1.0, -1.0);
+    model->vertices[5] = vec4_create( 1.0, -1.0, -1.0);
+    model->vertices[6] = vec4_create( 1.0,  1.0, -1.0);
+    model->vertices[7] = vec4_create(-1.0,  1.0, -1.0);
+
+    /* Roof peaks */
+    model->vertices[8] = vec4_create( 0.0,  2.0,  1.0);
+    model->vertices[9] = vec4_create( 0.0,  2.0, -1.0);
+
+    model->num_vertices = HOUSE_NUM_VERTICES;
+    /* ... face definitions follow ... */
+}
+\end{lstlisting}
+
+Each call to \texttt{vec4\_create(x,y,z)} produces $[x, y, z, 1]$.
+\end{codebox}
+
+% ============================================================================
+\section{Matrix Operations}
+\label{sec:matrix_ops}
+% ============================================================================
+
+\begin{mathbox}
+The \textbf{identity matrix} $\mathbf{I}$ satisfies $\mathbf{P} \cdot \mathbf{I} = \mathbf{P}$:
+
+\begin{equation}
+    \mathbf{I} = \begin{bmatrix}
+        1 & 0 & 0 & 0 \\
+        0 & 1 & 0 & 0 \\
+        0 & 0 & 1 & 0 \\
+        0 & 0 & 0 & 1
+    \end{bmatrix}
+\end{equation}
+
+\textbf{Matrix multiplication} $\mathbf{C} = \mathbf{A} \cdot \mathbf{B}$:
+
+\begin{equation}
+    C_{ij} = \sum_{k=0}^{3} A_{ik} \cdot B_{kj}
+    \label{eq:mat_mul}
+\end{equation}
+\end{mathbox}
+
+\begin{codebox}[\texttt{matrix.c}]
+\begin{lstlisting}
+void mat4_identity(Mat4 *m)
+{
+    memset(m->m, 0, sizeof(m->m));
+    m->m[0][0] = 1.0;
+    m->m[1][1] = 1.0;
+    m->m[2][2] = 1.0;
+    m->m[3][3] = 1.0;
+}
+
+void mat4_multiply(const Mat4 *A, const Mat4 *B, Mat4 *result)
+{
+    Mat4 temp;
+    int i, j, k;
+    for (i = 0; i < 4; i++)
+    {
+        for (j = 0; j < 4; j++)
+        {
+            temp.m[i][j] = 0.0;
+            for (k = 0; k < 4; k++)
+            {
+                temp.m[i][j] += A->m[i][k] * B->m[k][j];
+            }
+        }
+    }
+    mat4_copy(&temp, result);
+}
+\end{lstlisting}
+
+The triple nested loop directly implements $C_{ij} = \sum_k A_{ik} B_{kj}$.
+A temporary matrix \texttt{temp} is used so that \texttt{result} can safely alias \texttt{A} or \texttt{B}.
+\end{codebox}
+
+% ============================================================================
+\section{3D Transformation Matrices}
+\label{sec:transformations}
+% ============================================================================
+
+Rogers (Chapter 5) defines five fundamental transformations using
+$4 \times 4$ matrices that operate on row vectors in homogeneous coordinates.
+
+% ---- Translation ----
+\subsection{Translation}
+\label{sec:translation}
+
+\begin{mathbox}
+The translation matrix shifts a point by $(t_x, t_y, t_z)$:
+
+\begin{equation}
+    \mathbf{T}(t_x, t_y, t_z) = \begin{bmatrix}
+        1   & 0   & 0   & 0 \\
+        0   & 1   & 0   & 0 \\
+        0   & 0   & 1   & 0 \\
+        t_x & t_y & t_z & 1
+    \end{bmatrix}
+    \label{eq:translation}
+\end{equation}
+
+\textbf{Verification:}
+\begin{equation}
+    \mathbf{P'} = \mathbf{P} \cdot \mathbf{T} =
+    \begin{bmatrix} x & y & z & 1 \end{bmatrix}
+    \begin{bmatrix}
+        1   & 0   & 0   & 0 \\
+        0   & 1   & 0   & 0 \\
+        0   & 0   & 1   & 0 \\
+        t_x & t_y & t_z & 1
+    \end{bmatrix}
+    = \begin{bmatrix} x + t_x & y + t_y & z + t_z & 1 \end{bmatrix}
+\end{equation}
+
+\textit{The terms $t_x, t_y, t_z$ are in the last row because of Rogers' row vector convention.}
+\end{mathbox}
+
+\begin{codebox}[\texttt{transform.c}: \texttt{transform\_translation}]
+\begin{lstlisting}
+void transform_translation(double tx, double ty, double tz, Mat4 *out)
+{
+    mat4_identity(out);
+    out->m[3][0] = tx;   /* last row, column 0 */
+    out->m[3][1] = ty;   /* last row, column 1 */
+    out->m[3][2] = tz;   /* last row, column 2 */
+}
+\end{lstlisting}
+
+Starts from identity and places $t_x, t_y, t_z$ in row 3 (the last row), matching the mathematical definition exactly.
+\end{codebox}
+
+% ---- Scaling ----
+\newpage
+\subsection{Scaling}
+\label{sec:scaling}
+
+\begin{mathbox}
+The scaling matrix relative to the origin:
+
+\begin{equation}
+    \mathbf{S}(s_x, s_y, s_z) = \begin{bmatrix}
+        s_x & 0   & 0   & 0 \\
+        0   & s_y & 0   & 0 \\
+        0   & 0   & s_z & 0 \\
+        0   & 0   & 0   & 1
+    \end{bmatrix}
+    \label{eq:scale}
+\end{equation}
+
+\textbf{Result:}
+$\mathbf{P'} = \begin{bmatrix} s_x x & s_y y & s_z z & 1 \end{bmatrix}$
+\end{mathbox}
+
+\begin{codebox}[\texttt{transform.c}: \texttt{transform\_scale}]
+\begin{lstlisting}
+void transform_scale(double sx, double sy, double sz, Mat4 *out)
+{
+    mat4_identity(out);
+    out->m[0][0] = sx;   /* scale x */
+    out->m[1][1] = sy;   /* scale y */
+    out->m[2][2] = sz;   /* scale z */
+}
+\end{lstlisting}
+
+The diagonal elements $M_{00}, M_{11}, M_{22}$ hold the scale factors.
+\end{codebox}
+
+% ---- Rotation X ----
+\subsection{Rotation About the X Axis}
+\label{sec:rot_x}
+
+\begin{mathbox}
+Following the right-hand rule, a positive rotation of $\theta$
+about $X$ rotates $Y$ toward $Z$:
+
+\begin{equation}
+    \mathbf{R}_x(\theta) = \begin{bmatrix}
+        1 & 0           & 0          & 0 \\
+        0 & \cos\theta  & \sin\theta & 0 \\
+        0 & -\sin\theta & \cos\theta & 0 \\
+        0 & 0           & 0          & 1
+    \end{bmatrix}
+    \label{eq:rot_x}
+\end{equation}
+
+\textbf{Verification} with $\theta = 90°$: $(0, 1, 0) \to (0, 0, 1)$:
+\begin{equation}
+    \begin{bmatrix} 0 & 1 & 0 & 1 \end{bmatrix}
+    \begin{bmatrix}
+        1 & 0 & 0 & 0 \\
+        0 & 0 & 1 & 0 \\
+        0 & -1 & 0 & 0 \\
+        0 & 0 & 0 & 1
+    \end{bmatrix}
+    = \begin{bmatrix} 0 & 0 & 1 & 1 \end{bmatrix}
+\end{equation}
+\end{mathbox}
+
+\begin{codebox}[\texttt{transform.c}: \texttt{transform\_rotation\_x}]
+\begin{lstlisting}
+void transform_rotation_x(double theta, Mat4 *out)
+{
+    double c = cos(theta);
+    double s = sin(theta);
+    mat4_identity(out);
+    out->m[1][1] =  c;   /* cos(theta) at [1][1] */
+    out->m[1][2] =  s;   /* sin(theta) at [1][2] */
+    out->m[2][1] = -s;   /* -sin(theta) at [2][1] */
+    out->m[2][2] =  c;   /* cos(theta) at [2][2] */
+}
+\end{lstlisting}
+
+The four modified elements correspond exactly to the $2\times 2$ rotation sub-matrix
+in rows/columns 1--2 of the mathematical definition.
+\end{codebox}
+
+% ---- Rotation Y ----
+\subsection{Rotation About the Y Axis}
+\label{sec:rot_y}
+
+\begin{mathbox}
+Positive rotation rotates $Z$ toward $X$:
+
+\begin{equation}
+    \mathbf{R}_y(\theta) = \begin{bmatrix}
+        \cos\theta  & 0 & -\sin\theta & 0 \\
+        0           & 1 & 0           & 0 \\
+        \sin\theta  & 0 & \cos\theta  & 0 \\
+        0           & 0 & 0           & 1
+    \end{bmatrix}
+    \label{eq:rot_y}
+\end{equation}
+
+This is the main rotation in the animation: the house rotates continuously
+about the vertical $Y$ axis.
+\end{mathbox}
+
+\begin{codebox}[\texttt{transform.c}: \texttt{transform\_rotation\_y}]
+\begin{lstlisting}
+void transform_rotation_y(double theta, Mat4 *out)
+{
+    double c = cos(theta);
+    double s = sin(theta);
+    mat4_identity(out);
+    out->m[0][0] =  c;   /* cos(theta) at [0][0] */
+    out->m[0][2] = -s;   /* -sin(theta) at [0][2] */
+    out->m[2][0] =  s;   /* sin(theta) at [2][0] */
+    out->m[2][2] =  c;   /* cos(theta) at [2][2] */
+}
+\end{lstlisting}
+
+The $2\times 2$ rotation sub-matrix occupies rows/columns 0 and 2,
+skipping row/column 1 (the $Y$ axis is unchanged).
+Note the negative sign is at position $[0][2]$, matching the mathematical formula.
+\end{codebox}
+
+% ---- Rotation Z ----
+\subsection{Rotation About the Z Axis}
+\label{sec:rot_z}
+
+\begin{mathbox}
+Positive rotation rotates $X$ toward $Y$:
+
+\begin{equation}
+    \mathbf{R}_z(\theta) = \begin{bmatrix}
+        \cos\theta  & \sin\theta & 0 & 0 \\
+        -\sin\theta & \cos\theta & 0 & 0 \\
+        0           & 0          & 1 & 0 \\
+        0           & 0          & 0 & 1
+    \end{bmatrix}
+    \label{eq:rot_z}
+\end{equation}
+
+\textbf{Note:} The position of $-\sin\theta$ differs between the three
+rotations, following the cyclic rule $X \to Y \to Z \to X$.
+\end{mathbox}
+
+\begin{codebox}[\texttt{transform.c}: \texttt{transform\_rotation\_z}]
+\begin{lstlisting}
+void transform_rotation_z(double theta, Mat4 *out)
+{
+    double c = cos(theta);
+    double s = sin(theta);
+    mat4_identity(out);
+    out->m[0][0] =  c;   /* cos(theta) at [0][0] */
+    out->m[0][1] =  s;   /* sin(theta) at [0][1] */
+    out->m[1][0] = -s;   /* -sin(theta) at [1][0] */
+    out->m[1][1] =  c;   /* cos(theta) at [1][1] */
+}
+\end{lstlisting}
+
+The $2\times 2$ sub-matrix occupies rows/columns 0--1; row/column 2 ($Z$ axis) is unchanged.
+\end{codebox}
+
+% ============================================================================
+\section{Composite Transformations}
+\label{sec:composite}
+% ============================================================================
+
+\begin{mathbox}
+Rogers (Chapter 5) emphasizes that in the row vector convention, the
+\textbf{multiplication order} is the \textbf{application order}:
+
+\begin{equation}
+    \mathbf{M}_{composite} = \mathbf{M}_1 \cdot \mathbf{M}_2 \cdot \mathbf{M}_3 \cdots
+    \label{eq:composition}
+\end{equation}
+
+where $\mathbf{M}_1$ is applied first, then $\mathbf{M}_2$, etc.
+\end{mathbox}
+
+\subsection{Rotation About an Arbitrary Point}
+
+\begin{mathbox}
+To rotate about a center $\mathbf{C} = (c_x, c_y, c_z)$ instead of the origin:
+
+\begin{enumerate}
+    \item \textbf{Translate} center to origin: $\mathbf{T}(-c_x, -c_y, -c_z)$
+    \item \textbf{Rotate}: $\mathbf{R}_y(\theta)$
+    \item \textbf{Translate back}: $\mathbf{T}(c_x, c_y, c_z)$
+\end{enumerate}
+
+\begin{equation}
+    \mathbf{M} = \mathbf{T}(-c_x, -c_y, -c_z) \cdot \mathbf{R}_y(\theta) \cdot \mathbf{T}(c_x, c_y, c_z)
+    \label{eq:rotation_around_center}
+\end{equation}
+\end{mathbox}
+
+\begin{codebox}[\texttt{transform.c}: \texttt{transform\_rotate\_y\_around}]
+\begin{lstlisting}
+void transform_rotate_y_around(double theta,
+    double cx, double cy, double cz, Mat4 *out)
+{
+    Mat4 t1, r, t2, temp;
+
+    /* Step 1: Translate center to origin */
+    transform_translation(-cx, -cy, -cz, &t1);
+
+    /* Step 2: Rotate about Y */
+    transform_rotation_y(theta, &r);
+
+    /* Step 3: Translate back */
+    transform_translation(cx, cy, cz, &t2);
+
+    /* Composite: M = T1 * R * T2 */
+    mat4_multiply(&t1, &r, &temp);
+    mat4_multiply(&temp, &t2, out);
+}
+\end{lstlisting}
+
+The three steps from the mathematical definition map directly to
+three function calls, composed via two matrix multiplications.
+The same pattern is used for \texttt{transform\_rotate\_x\_around}.
+\end{codebox}
+
+\subsection{Numerical Example}
+
+\begin{mathbox}
+The geometric center of the house is $\mathbf{C} = (0, 0.4, 0)$.
+To rotate $30°$ about $Y$ around the center:
+
+\begin{equation}
+    \mathbf{T}_1 = \begin{bmatrix}
+        1 & 0 & 0 & 0 \\  0 & 1 & 0 & 0 \\
+        0 & 0 & 1 & 0 \\  0 & -0.4 & 0 & 1
+    \end{bmatrix}, \;
+    \mathbf{R}_y = \begin{bmatrix}
+        0.866 & 0 & -0.5 & 0 \\  0 & 1 & 0 & 0 \\
+        0.5 & 0 & 0.866 & 0 \\  0 & 0 & 0 & 1
+    \end{bmatrix}, \;
+    \mathbf{T}_2 = \begin{bmatrix}
+        1 & 0 & 0 & 0 \\  0 & 1 & 0 & 0 \\
+        0 & 0 & 1 & 0 \\  0 & 0.4 & 0 & 1
+    \end{bmatrix}
+\end{equation}
+
+Since $c_x = c_z = 0$, the composite reduces to the pure rotation matrix.
+
+Applying to vertex $\mathbf{V}_1 = [1, -1, 1, 1]$:
+\begin{equation}
+    \mathbf{V}_1' = \begin{bmatrix} 1.366 & -1 & 0.366 & 1 \end{bmatrix}
+\end{equation}
+\end{mathbox}
+
+\begin{codebox}[\texttt{geometry.c}: \texttt{geometry\_compute\_center}]
+The center $\mathbf{C}$ used in the rotation is computed as the average of all vertices:
+
+\begin{lstlisting}
+void geometry_compute_center(Model *model)
+{
+    double cx = 0, cy = 0, cz = 0;
+    int i;
+    for (i = 0; i < model->num_vertices; i++)
+    {
+        cx += model->vertices[i].v[0];
+        cy += model->vertices[i].v[1];
+        cz += model->vertices[i].v[2];
+    }
+    model->center_x = cx / model->num_vertices;
+    model->center_y = cy / model->num_vertices;
+    model->center_z = cz / model->num_vertices;
+}
+\end{lstlisting}
+
+This yields $\mathbf{C} = (0, 0.4, 0)$ for the 10-vertex house model.
+\end{codebox}
+
+% ============================================================================
+\section{3D to 2D Projection}
+\label{sec:projection}
+% ============================================================================
+
+Rogers (Chapter 5) presents two types of projection.
+
+\subsection{Orthographic (Parallel) Projection}
+
+\begin{mathbox}
+The simplest projection, which discards the $z$ coordinate:
+
+\begin{equation}
+    \mathbf{P}_{ortho} = \begin{bmatrix}
+        1 & 0 & 0 & 0 \\
+        0 & 1 & 0 & 0 \\
+        0 & 0 & 0 & 0 \\
+        0 & 0 & 0 & 1
+    \end{bmatrix}
+    \label{eq:proj_ortho}
+\end{equation}
+
+Result: $x_{screen} = x, \quad y_{screen} = y$.
+
+Parallel lines remain parallel; no depth effect.
+\end{mathbox}
+
+\begin{codebox}[\texttt{projection.c}: orthographic branch]
+\begin{lstlisting}
+void projection_init_ortho(Projection *proj, int vp_width,
+                           int vp_height, double scale)
+{
+    proj->type = PROJ_ORTHOGRAPHIC;
+    proj->d = 0.0;
+    proj->vp_width = vp_width;
+    proj->vp_height = vp_height;
+    proj->scale = scale;
+    proj->aspect_fix = 2.0;
+}
+
+/* Inside projection_project(): */
+    else  /* orthographic */
+    {
+        x2d = x;    /* simply copy x */
+        y2d = y;    /* simply copy y, discard z */
+    }
+\end{lstlisting}
+
+The orthographic case directly assigns $x$ and $y$, ignoring $z$ entirely.
+\end{codebox}
+
+\subsection{Perspective Projection}
+
+\begin{mathbox}
+Rogers defines the perspective projection with the eye at $(0, 0, d)$
+and projection plane at $z = 0$:
+
+\begin{equation}
+    \mathbf{P}_{persp} = \begin{bmatrix}
+        1 & 0 & 0    & 0 \\
+        0 & 1 & 0    & 0 \\
+        0 & 0 & 0    & -\tfrac{1}{d} \\
+        0 & 0 & 0    & 1
+    \end{bmatrix}
+    \label{eq:proj_persp}
+\end{equation}
+
+After multiplication and \textbf{perspective division}:
+
+\begin{equation}
+    x_{screen} = \frac{x}{1 - z/d}, \qquad y_{screen} = \frac{y}{1 - z/d}
+    \label{eq:perspective_division}
+\end{equation}
+
+\textbf{Geometric interpretation:} Distant objects ($z$ more negative,
+$1 - z/d$ larger) are divided by a larger number, making them smaller.
+
+\textbf{Singularity:} When $z = d$, the denominator is zero (point at the eye).
+We guard against this with $w > 0.001$.
+\end{mathbox}
+
+\begin{codebox}[\texttt{projection.c}: \texttt{projection\_project}]
+\begin{lstlisting}
+int projection_project(const Projection *proj, const Vec4 *p3d,
+                       double *screen_x, double *screen_y)
+{
+    double x = p3d->v[0];
+    double y = p3d->v[1];
+    double z = p3d->v[2];
+    double x2d, y2d;
+
+    if (proj->type == PROJ_PERSPECTIVE)
+    {
+        double w = 1.0 - z / proj->d;  /* w = 1 - z/d */
+        if (w <= 0.001)
+        {
+            return 0;  /* singularity guard */
+        }
+        x2d = x / w;  /* perspective division */
+        y2d = y / w;
+    }
+    else
+    {
+        x2d = x;
+        y2d = y;
+    }
+    /* ... viewport mapping follows ... */
+    return 1;
+}
+\end{lstlisting}
+
+The perspective division $x/(1 - z/d)$ is computed explicitly.
+The guard \texttt{w <= 0.001} prevents division by zero at the singularity.
+\end{codebox}
+
+\subsection{Viewport Mapping}
+
+\begin{mathbox}
+After projection, coordinates are mapped to the terminal grid:
+
+\begin{equation}
+    col = x_{2d} \cdot scale \cdot f_{aspect} + \frac{width}{2}
+    \label{eq:viewport_x}
+\end{equation}
+\begin{equation}
+    row = \frac{height}{2} - y_{2d} \cdot scale
+    \label{eq:viewport_y}
+\end{equation}
+
+where $f_{aspect} \approx 2.0$ corrects for terminal characters being taller
+than wide, and $Y$ is inverted (terminal $y$ increases downward).
+\end{mathbox}
+
+\begin{codebox}[\texttt{projection.c}: viewport mapping]
+\begin{lstlisting}
+    *screen_x = x2d * proj->scale * proj->aspect_fix
+                + proj->vp_width / 2.0;
+    *screen_y = proj->vp_height / 2.0
+                - y2d * proj->scale;
+\end{lstlisting}
+
+This is the final part of \texttt{projection\_project()}.
+The \texttt{aspect\_fix = 2.0} stretches $x$ to compensate for tall characters.
+The subtraction in $y$ inverts the axis.
+\end{codebox}
+
+% ============================================================================
+\section{Surface Normal and Cross Product}
+\label{sec:normals}
+% ============================================================================
+
+\begin{mathbox}
+Rogers (Chapter 7) defines the \textbf{face normal} as the cross product
+of two edge vectors. For a face with vertices $\mathbf{V}_1, \mathbf{V}_2, \mathbf{V}_3$
+(counter-clockwise as seen from outside):
+
+\begin{equation}
+    \mathbf{E}_1 = \mathbf{V}_2 - \mathbf{V}_1, \qquad
+    \mathbf{E}_2 = \mathbf{V}_3 - \mathbf{V}_1
+\end{equation}
+
+\begin{equation}
+    \mathbf{N} = \mathbf{E}_1 \times \mathbf{E}_2
+    \label{eq:normal}
+\end{equation}
+
+Component expansion:
+\begin{equation}
+    \begin{cases}
+        N_x = E_{1y} \cdot E_{2z} - E_{1z} \cdot E_{2y} \\[0.3em]
+        N_y = E_{1z} \cdot E_{2x} - E_{1x} \cdot E_{2z} \\[0.3em]
+        N_z = E_{1x} \cdot E_{2y} - E_{1y} \cdot E_{2x}
+    \end{cases}
+    \label{eq:cross_components}
+\end{equation}
+\end{mathbox}
+
+\begin{codebox}[\texttt{matrix.c}: \texttt{vec3\_cross} and \texttt{vec3\_sub}]
+\begin{lstlisting}
+Vec3 vec3_sub(Vec3 a, Vec3 b)
+{
+    Vec3 result;
+    result.x = a.x - b.x;    /* E = V2 - V1 */
+    result.y = a.y - b.y;
+    result.z = a.z - b.z;
+    return result;
+}
+
+Vec3 vec3_cross(Vec3 a, Vec3 b)
+{
+    Vec3 result;
+    result.x = a.y * b.z - a.z * b.y;   /* Nx */
+    result.y = a.z * b.x - a.x * b.z;   /* Ny */
+    result.z = a.x * b.y - a.y * b.x;   /* Nz */
+    return result;
+}
+\end{lstlisting}
+
+Each line of \texttt{vec3\_cross} corresponds exactly to one component
+of Equation~\ref{eq:cross_components}.
+\end{codebox}
+
+\begin{codebox}[\texttt{geometry.c}: \texttt{geometry\_face\_normal}]
+Combining subtraction and cross product to compute a face's outward normal:
+
+\begin{lstlisting}
+Vec3 geometry_face_normal(const Model *model, int face_idx)
+{
+    const Face *face = &model->faces[face_idx];
+    const Vec4 *v0 = &model->transformed[face->indices[0]];
+    const Vec4 *v1 = &model->transformed[face->indices[1]];
+    const Vec4 *v2 = &model->transformed[face->indices[2]];
+
+    Vec3 p0 = vec3_create(v0->v[0], v0->v[1], v0->v[2]);
+    Vec3 p1 = vec3_create(v1->v[0], v1->v[1], v1->v[2]);
+    Vec3 p2 = vec3_create(v2->v[0], v2->v[1], v2->v[2]);
+
+    Vec3 e1 = vec3_sub(p1, p0);   /* E1 = V2 - V1 */
+    Vec3 e2 = vec3_sub(p2, p0);   /* E2 = V3 - V1 */
+    return vec3_cross(e1, e2);     /* N = E1 x E2 */
+}
+\end{lstlisting}
+
+The function extracts 3D coordinates from the homogeneous \texttt{Vec4},
+computes the two edge vectors, and returns their cross product.
+\end{codebox}
+
+\subsection{Example: Front Face}
+
+\begin{mathbox}
+Front face vertices: $\mathbf{V}_0 = (-1,-1,1)$, $\mathbf{V}_1 = (1,-1,1)$, $\mathbf{V}_2 = (1,1,1)$.
+
+\begin{equation}
+    \mathbf{E}_1 = (2,0,0), \quad \mathbf{E}_2 = (2,2,0)
+\end{equation}
+\begin{equation}
+    \mathbf{N} = (0 - 0, \; 0 - 0, \; 4 - 0) = (0, 0, 4)
+\end{equation}
+
+Normal points in $+Z$ (toward observer) $\implies$ front-facing.
+\end{mathbox}
+
+% ============================================================================
+\section{Hidden Surface Removal}
+\label{sec:culling}
+% ============================================================================
+
+Rogers (Chapter 7) presents algorithms for determining which surfaces are visible.
+
+\subsection{Back-Face Culling}
+
+\begin{mathbox}
+A face is \textbf{visible} if its normal points toward the observer.
+For orthographic projection with the observer at $+Z$:
+
+\begin{equation}
+    \text{Face is \textbf{visible} if } N_z > 0
+    \label{eq:culling_criterion}
+\end{equation}
+
+Front face: $N_z = 4 > 0 \to$ visible. \\
+Back face: $N_z = -4 < 0 \to$ hidden.
+
+\textbf{Limitation:} Works perfectly for convex objects.
+For non-convex objects (e.g., house with roof), we also need the Painter's Algorithm.
+\end{mathbox}
+
+\begin{codebox}[\texttt{pipeline.c}: back-face culling]
+\begin{lstlisting}
+    for (i = 0; i < model->num_faces; i++)
+    {
+        Vec3 normal = geometry_face_normal(model, i);
+        if (normal.z > 0)   /* Nz > 0 => visible */
+        {
+            visible_faces[num_visible].face_idx = i;
+            visible_faces[num_visible].avg_z =
+                geometry_face_avg_z(model, i);
+            num_visible++;
+        }
+    }
+\end{lstlisting}
+
+The single condition \texttt{normal.z > 0} implements Equation~\ref{eq:culling_criterion}.
+Only faces that pass this test enter the visible list.
+\end{codebox}
+
+\subsection{Painter's Algorithm}
+
+\begin{mathbox}
+The Painter's Algorithm draws faces from farthest to nearest:
+
+\begin{enumerate}
+    \item Compute the \textbf{average depth} of each visible face:
+    \begin{equation}
+        \bar{z}_f = \frac{1}{n} \sum_{i=1}^{n} z_i
+        \label{eq:depth_avg}
+    \end{equation}
+
+    \item \textbf{Sort} faces by $\bar{z}$ in ascending order (farthest first).
+
+    \item \textbf{Rasterize} in order: closer faces overwrite farther ones.
+\end{enumerate}
+\end{mathbox}
+
+\begin{codebox}[\texttt{pipeline.c} and \texttt{geometry.c}]
+Average depth computation:
+\begin{lstlisting}
+double geometry_face_avg_z(const Model *model, int face_idx)
+{
+    const Face *face = &model->faces[face_idx];
+    double sum_z = 0;
+    int i;
+    for (i = 0; i < face->num_verts; i++)
+    {
+        sum_z += model->transformed[face->indices[i]].v[2];
+    }
+    return sum_z / face->num_verts;
+}
+\end{lstlisting}
+
+Sorting by depth (ascending = farthest first):
+\begin{lstlisting}
+static int compare_face_depth(const void *a, const void *b)
+{
+    const FaceDepth *fa = (const FaceDepth *)a;
+    const FaceDepth *fb = (const FaceDepth *)b;
+    if (fa->avg_z < fb->avg_z) return -1;
+    if (fa->avg_z > fb->avg_z) return  1;
+    return 0;
+}
+
+    /* In pipeline_render_frame(): */
+    qsort(visible_faces, num_visible,
+          sizeof(FaceDepth), compare_face_depth);
+\end{lstlisting}
+
+The C standard library \texttt{qsort} sorts by $\bar{z}$; faces are then
+drawn in order so closer faces overwrite farther ones.
+\end{codebox}
+
+% ============================================================================
+\section{Line Rasterization: DDA Algorithm}
+\label{sec:dda}
+% ============================================================================
+
+\begin{mathbox}
+Rogers (Chapter 2) presents the \textbf{DDA (Digital Differential Analyzer)}.
+
+A segment from $(x_0, y_0)$ to $(x_1, y_1)$ with $\Delta x = x_1 - x_0$,
+$\Delta y = y_1 - y_0$.
+
+Choose $N = \max(|\Delta x|, |\Delta y|)$ steps so that the dominant
+axis advances by exactly 1 pixel per step:
+
+\begin{equation}
+    x_{inc} = \frac{\Delta x}{N}, \qquad y_{inc} = \frac{\Delta y}{N}
+    \label{eq:dda_increment}
+\end{equation}
+
+At each step $i = 0, 1, \ldots, N$:
+\begin{equation}
+    x_i = x_0 + i \cdot x_{inc}, \qquad y_i = y_0 + i \cdot y_{inc}
+    \label{eq:dda_step}
+\end{equation}
+
+Plot pixel at $(\text{round}(x_i), \text{round}(y_i))$.
+Complexity: $O(N)$ per line.
+\end{mathbox}
+
+\begin{codebox}[\texttt{render.c}: \texttt{render\_line}]
+\begin{lstlisting}
+void render_line(Framebuffer *fb, double x0, double y0,
+                 double x1, double y1, char c)
+{
+    double dx = x1 - x0;                        /* delta x */
+    double dy = y1 - y0;                        /* delta y */
+    int abs_dx = (int)(fabs(dx) + 0.5);
+    int abs_dy = (int)(fabs(dy) + 0.5);
+    int steps = abs_dx > abs_dy ? abs_dx : abs_dy; /* N */
+
+    if (steps == 0)
+    {
+        fb_set(fb, (int)(x0 + 0.5), (int)(y0 + 0.5), c);
+        return;
+    }
+
+    double x_inc = dx / (double)steps;   /* x_inc = dx/N */
+    double y_inc = dy / (double)steps;   /* y_inc = dy/N */
+    double x = x0, y = y0;
+    int i;
+
+    for (i = 0; i <= steps; i++)
+    {
+        fb_set(fb, (int)(x + 0.5), (int)(y + 0.5), c);
+        x += x_inc;       /* x_i = x0 + i * x_inc */
+        y += y_inc;       /* y_i = y0 + i * y_inc */
+    }
+}
+\end{lstlisting}
+
+The code follows the DDA algorithm step by step:
+\texttt{steps} = $N = \max(|\Delta x|, |\Delta y|)$;
+increments are $\Delta x / N$ and $\Delta y / N$;
+rounding is done by adding 0.5 before casting to \texttt{int}.
+\end{codebox}
+
+% ============================================================================
+\newpage
+\section{Polygon Filling: Scan-Line Algorithm}
+\label{sec:scanline}
+% ============================================================================
+
+\begin{mathbox}
+Rogers (Chapters 3--4) describes the \textbf{scan-line algorithm}:
+
+For each horizontal scan line $y$:
+\begin{enumerate}
+    \item Find all \textbf{intersections} with polygon edges
+    \item \textbf{Sort} intersections by ascending $x$
+    \item \textbf{Fill} between consecutive pairs: $(x_0, x_1)$, $(x_2, x_3)$, \ldots
+\end{enumerate}
+
+Edge/scan-line intersection for an edge from $(x_1, y_1)$ to $(x_2, y_2)$:
+
+\begin{equation}
+    x_{int} = x_1 + \frac{y - y_1}{y_2 - y_1} \cdot (x_2 - x_1)
+    \label{eq:scanline_intersection}
+\end{equation}
+
+\textbf{Condition:} $y \in [\min(y_1, y_2), \; \max(y_1, y_2))$ (half-open interval
+to avoid counting shared vertices twice).
+\end{mathbox}
+
+\begin{codebox}[\texttt{render.c}: \texttt{render\_fill\_polygon}]
+\begin{lstlisting}
+void render_fill_polygon(Framebuffer *fb,
+    const double *verts_x, const double *verts_y,
+    int n, char c)
+{
+    /* ... compute ymin, ymax ... */
+
+    for (y = ymin; y <= ymax; y++)  /* each scan line */
+    {
+        num_intersections = 0;
+        for (i = 0; i < n; i++)
+        {
+            j = (i + 1) % n;  /* next vertex (wraps) */
+            double y1 = verts_y[i], y2 = verts_y[j];
+            double x1 = verts_x[i], x2 = verts_x[j];
+
+            /* Half-open interval test */
+            if ((y1 <= y && y2 > y) || (y2 <= y && y1 > y))
+            {
+                /* x_int = x1 + (y-y1)/(y2-y1) * (x2-x1) */
+                double t = ((double)y - y1) / (y2 - y1);
+                double x_int = x1 + t * (x2 - x1);
+                intersections[num_intersections++] = x_int;
+            }
+        }
+
+        /* Sort intersections by x (insertion sort) */
+        for (i = 1; i < num_intersections; i++) { /* ... */ }
+
+        /* Fill between pairs */
+        for (i = 0; i + 1 < num_intersections; i += 2)
+        {
+            int xstart = (int)(intersections[i] + 0.5);
+            int xend = (int)(intersections[i + 1] + 0.5);
+            int col;
+            for (col = xstart; col <= xend; col++)
+                fb->buffer[y][col] = c;
+        }
+    }
+}
+\end{lstlisting}
+
+The half-open interval condition \texttt{(y1 <= y \&\& y2 > y) || (y2 <= y \&\& y1 > y)}
+ensures each vertex intersection is counted exactly once.
+The intersection formula \texttt{x1 + t * (x2 - x1)} directly implements
+Equation~\ref{eq:scanline_intersection}.
+\end{codebox}
+
+% ============================================================================
+\section{Diffuse Lighting: Lambert's Law}
+\label{sec:lambert}
+% ============================================================================
+
+\begin{mathbox}
+Rogers (Chapter 8) presents \textbf{Lambertian diffuse lighting}.
+
+\textbf{Lambert's Law}: the reflected intensity is proportional to
+$\cos\theta$ between the normal and light direction:
+
+\begin{equation}
+    I_{diffuse} = I_d \cdot \cos\theta = I_d \cdot (\hat{\mathbf{N}} \cdot \hat{\mathbf{L}})
+    \label{eq:lambert}
+\end{equation}
+
+where $\hat{\mathbf{N}}$ and $\hat{\mathbf{L}}$ are unit vectors:
+\begin{equation}
+    \hat{\mathbf{N}} = \frac{\mathbf{N}}{|\mathbf{N}|}, \qquad
+    |\mathbf{N}| = \sqrt{N_x^2 + N_y^2 + N_z^2}
+    \label{eq:normalize}
+\end{equation}
+
+With \textbf{ambient light} $I_a$:
+\begin{equation}
+    I = I_a + I_d \cdot \max(0, \; \hat{\mathbf{N}} \cdot \hat{\mathbf{L}})
+    \label{eq:lambert_full}
+\end{equation}
+
+In our renderer: $I_a = 0.15$, $I_d = 0.85$, so $I \in [0.15, 1.0]$.
+\end{mathbox}
+
+\begin{codebox}[\texttt{matrix.c}: normalization]
+Vector normalization $\hat{\mathbf{N}} = \mathbf{N} / |\mathbf{N}|$:
+
+\begin{lstlisting}
+double vec3_length(Vec3 v)
+{
+    return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+Vec3 vec3_normalize(Vec3 v)
+{
+    double len = vec3_length(v);
+    Vec3 result;
+    if (len > 1e-10)
+    {
+        result.x = v.x / len;
+        result.y = v.y / len;
+        result.z = v.z / len;
+    }
+    else
+    {
+        result.x = result.y = result.z = 0.0;
+    }
+    return result;
+}
+
+double vec3_dot(Vec3 a, Vec3 b)
+{
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+\end{lstlisting}
+
+The guard \texttt{len > 1e-10} prevents division by zero for degenerate normals.
+\end{codebox}
+
+\begin{codebox}[\texttt{render.c}: \texttt{render\_shade}]
+The complete Lambert shading computation:
+
+\begin{lstlisting}
+char render_shade(Vec3 normal, Vec3 light_dir)
+{
+    Vec3 n = vec3_normalize(normal);     /* N_hat */
+    Vec3 l = vec3_normalize(light_dir);  /* L_hat */
+    double dot = vec3_dot(n, l);         /* N . L */
+    if (dot < 0.0) dot = 0.0;           /* max(0, ...) */
+
+    double ambient = 0.15;   /* I_a = 0.15 */
+    double diffuse = 0.85;   /* I_d = 0.85 */
+    double intensity = ambient + diffuse * dot;
+    if (intensity > 1.0) intensity = 1.0;
+
+    int idx = (int)(intensity * (ASCII_RAMP_LEN - 1) + 0.5);
+    if (idx < 0) idx = 0;
+    if (idx >= ASCII_RAMP_LEN) idx = ASCII_RAMP_LEN - 1;
+
+    return ascii_ramp[idx];
+}
+\end{lstlisting}
+
+Line by line, this implements $I = I_a + I_d \cdot \max(0, \hat{N} \cdot \hat{L})$
+from Equation~\ref{eq:lambert_full}, then maps $I$ to an ASCII character.
+\end{codebox}
+
+\subsection{Mapping to ASCII}
+
+\begin{mathbox}
+The intensity $I \in [0.15, 1.0]$ is mapped to a ramp of 12 ASCII characters:
+
+\begin{center}
+    \texttt{" .,:;=+*\#\%@\$"} \quad (index 0 to 11, dark $\to$ bright)
+\end{center}
+
+\begin{equation}
+    idx = \text{round}(I \cdot 11)
+    \label{eq:ascii_map}
+\end{equation}
+
+\textbf{Example:} Light $\hat{\mathbf{L}} = (0.46, 0.74, 0.56)$ (normalized from $(0.5, 0.8, 0.6)$).
+For the front face $\hat{\mathbf{N}} = (0, 0, 1)$:
+
+\begin{equation}
+    \hat{\mathbf{N}} \cdot \hat{\mathbf{L}} = 0.56, \quad
+    I = 0.15 + 0.85 \times 0.56 = 0.626, \quad
+    idx = \text{round}(6.89) = 7 \implies \texttt{`*'}
+\end{equation}
+\end{mathbox}
+
+\begin{codebox}[\texttt{render.h} and \texttt{pipeline.c}]
+The ASCII ramp definition and light direction:
+
+\begin{lstlisting}
+/* render.h */
+#define ASCII_RAMP " .,:;=+*#%@$"
+#define ASCII_RAMP_LEN 12
+
+/* pipeline.c */
+static const Vec3 LIGHT_DIR = {0.5, 0.8, 0.6};
+\end{lstlisting}
+
+The ramp index \texttt{(int)(intensity * 11 + 0.5)} implements
+Equation~\ref{eq:ascii_map}.
+\end{codebox}
+
+% ============================================================================
+\section{Complete Rendering Pipeline}
+\label{sec:pipeline}
+% ============================================================================
+
+The pipeline follows the order described by Rogers across
+the chapters of the book:
+
+\begin{enumerate}
+    \item \textbf{Define model:} vertices and faces
+    \item \textbf{Transform vertices:} $\mathbf{V'} = \mathbf{V} \cdot \mathbf{M}$
+    \item \textbf{Compute normals:} $\mathbf{N} = \mathbf{E}_1 \times \mathbf{E}_2$
+    \item \textbf{Back-face culling:} $N_z > 0 \implies$ visible
+    \item \textbf{Painter's sort:} sort by $\bar{z}$
+    \item \textbf{Project 3D $\to$ 2D}
+    \item \textbf{Rasterize:} DDA + Scan-line
+    \item \textbf{Lambert shading:} $I = I_a + I_d \cdot (\hat{N} \cdot \hat{L})$
+    \item \textbf{Display on terminal}
+\end{enumerate}
+
+\begin{codebox}[\texttt{pipeline.c}: \texttt{pipeline\_render\_frame} (complete)]
+The entire pipeline in a single function:
+
+\begin{lstlisting}
+void pipeline_render_frame(Model *model, Framebuffer *fb,
+    const Projection *proj,
+    double angle_y, double angle_x, RenderMode mode)
+{
+    Mat4 rot_y, rot_x, composite;
+    int i;
+    FaceDepth visible_faces[HOUSE_NUM_FACES];
+    int num_visible = 0;
+
+    /* --- Step 2: Build composite transformation --- */
+    transform_rotate_y_around(angle_y,
+        model->center_x, model->center_y, model->center_z,
+        &rot_y);
+    transform_rotate_x_around(angle_x,
+        model->center_x, model->center_y, model->center_z,
+        &rot_x);
+    mat4_multiply(&rot_y, &rot_x, &composite);
+
+    /* Transform all vertices: V' = V * M */
+    for (i = 0; i < model->num_vertices; i++)
+    {
+        mat4_transform_point(&composite,
+            &model->vertices[i], &model->transformed[i]);
+    }
+
+    /* --- Steps 3-4: Normal + Back-face culling --- */
+    for (i = 0; i < model->num_faces; i++)
+    {
+        Vec3 normal = geometry_face_normal(model, i);
+        if (normal.z > 0)
+        {
+            visible_faces[num_visible].face_idx = i;
+            visible_faces[num_visible].avg_z =
+                geometry_face_avg_z(model, i);
+            num_visible++;
+        }
+    }
+
+    /* --- Step 5: Painter's sort --- */
+    qsort(visible_faces, num_visible,
+          sizeof(FaceDepth), compare_face_depth);
+
+    /* --- Steps 6-8: Project, Rasterize, Shade --- */
+    for (i = 0; i < num_visible; i++)
+    {
+        int fi = visible_faces[i].face_idx;
+        const Face *face = &model->faces[fi];
+        double px[MAX_FACE_VERTS], py[MAX_FACE_VERTS];
+        int v, valid = 1;
+
+        /* Step 6: Project 3D -> 2D */
+        for (v = 0; v < face->num_verts; v++)
+        {
+            int idx = face->indices[v];
+            if (!projection_project(proj,
+                &model->transformed[idx], &px[v], &py[v]))
+            { valid = 0; break; }
+        }
+        if (!valid) continue;
+
+        /* Step 7-8: Fill with shading */
+        if (mode == RENDER_FILLED || mode == RENDER_BOTH)
+        {
+            Vec3 normal = geometry_face_normal(model, fi);
+            char shade_char = render_shade(normal, LIGHT_DIR);
+            render_fill_polygon(fb, px, py,
+                face->num_verts, shade_char);
+        }
+
+        /* Step 7: Wireframe */
+        if (mode == RENDER_WIREFRAME || mode == RENDER_BOTH)
+        {
+            for (v = 0; v < face->num_verts; v++)
+            {
+                int next = (v + 1) % face->num_verts;
+                render_line(fb, px[v], py[v],
+                    px[next], py[next], WIRE_CHAR);
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+Each step in the pipeline diagram corresponds to a clearly identifiable
+block in the code, demonstrating the direct mapping from Rogers' theory
+to the C implementation.
+\end{codebox}
+
+\subsection{Code to Chapter Correspondence}
+
+\begin{center}
+\begin{tabular}{|l|l|l|l|}
+    \hline
+    \textbf{Stage} & \textbf{Algorithm} & \textbf{Rogers} & \textbf{Source File} \\
+    \hline
+    Homogeneous coordinates & $[x\;y\;z\;w]$, $4\times4$ matrices   & Ch. 2, 5 & \texttt{matrix.c/h} \\
+    3D Transformations      & $T$, $S$, $R_x$, $R_y$, $R_z$         & Ch. 5    & \texttt{transform.c/h} \\
+    Model definition        & Vertices + CCW faces                   & Ch. 5    & \texttt{geometry.c/h} \\
+    Projection              & Orthographic / Perspective              & Ch. 5    & \texttt{projection.c/h} \\
+    Line rasterization      & DDA                                     & Ch. 2    & \texttt{render.c} \\
+    Polygon filling         & Scan-line fill                          & Ch. 3--4 & \texttt{render.c} \\
+    Hidden surfaces         & Back-face culling + Painter's           & Ch. 7    & \texttt{pipeline.c} \\
+    Lighting                & Lambertian diffuse                      & Ch. 8    & \texttt{render.c} \\
+    Pipeline orchestration  & All stages combined                     & All      & \texttt{pipeline.c} \\
+    \hline
+\end{tabular}
+\end{center}
+
+% ============================================================================
+\section{Reference}
+\label{sec:reference}
+% ============================================================================
+
+\noindent
+Rogers, David F. \textit{Procedural Elements for Computer Graphics}.
+2nd edition. McGraw-Hill, 1998.
+
+\end{document}

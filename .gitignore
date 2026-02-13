@@ -1,0 +1,4 @@
+*.o
+house3d
+house3d.exe
+.DS_Store
