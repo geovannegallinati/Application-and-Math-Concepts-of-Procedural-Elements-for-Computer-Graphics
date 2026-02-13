@@ -1,6 +1,10 @@
-# 3D ASCII House Renderer
+# Application and Math Concepts of Procedural Elements for Computer Graphics
 
 A pure C implementation of a real-time 3D rendering pipeline that displays a rotating house in the terminal using ASCII characters. Based entirely on the algorithms described in *"Procedural Elements for Computer Graphics"* (2nd edition) by David F. Rogers.
+
+The full mathematical documentation with paired C code explanations is available as a PDF:
+
+[Application and Math Concepts of Procedural Elements for Computer Graphics.pdf](Application%20and%20Math%20Concepts%20of%20Procedural%20Elements%20for%20Computer%20Graphics.pdf)
 
 ## Features
 
@@ -12,12 +16,6 @@ A pure C implementation of a real-time 3D rendering pipeline that displays a rot
 - DDA line rasterization
 - Scan-line polygon filling
 - Lambert diffuse shading with ASCII luminance ramp
-
-## Documentation
-
-The full mathematical documentation with paired C code explanations is available as a PDF:
-
-[Application and Math Concepts of Procedural Elements for Computer Graphics.pdf](Application%20and%20Math%20Concepts%20of%20Procedural%20Elements%20for%20Computer%20Graphics.pdf)
 
 ## Building
 
