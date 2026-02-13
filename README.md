@@ -4,7 +4,7 @@ A pure C implementation of a real-time 3D rendering pipeline that displays a rot
 
 The full mathematical documentation with paired C code explanations is available as a PDF:
 
-[Application and Math Concepts of Procedural Elements for Computer Graphics.pdf](Application%20and%20Math%20Concepts%20of%20Procedural%20Elements%20for%20Computer%20Graphics.pdf)
+[Application and Math Concepts of Procedural Elements for Computer Graphics.pdf](docs/Application%20and%20Math%20Concepts%20of%20Procedural%20Elements%20for%20Computer%20Graphics.pdf)
 
 ## Features
 
