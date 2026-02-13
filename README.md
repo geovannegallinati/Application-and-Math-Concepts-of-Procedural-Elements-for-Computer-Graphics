@@ -1,6 +1,6 @@
 # Application and Math Concepts of Procedural Elements for Computer Graphics
 
-A pure C implementation of a real-time 3D rendering pipeline that displays a rotating house in the terminal using ASCII characters. Based entirely on the algorithms described in *"Procedural Elements for Computer Graphics"* (2nd edition) by David F. Rogers.
+A pure C implementation of a real-time 3D rendering pipeline that displays a rotating house in the terminal using ASCII characters.
 
 The full mathematical documentation with paired C code explanations is available as a PDF:
 
