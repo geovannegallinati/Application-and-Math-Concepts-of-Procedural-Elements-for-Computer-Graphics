@@ -78,6 +78,7 @@ gcc -Wall -Wextra -O2 -std=c99 -o house3d.exe *.c -lm
 | `-s speed` | Rotation speed in degrees per frame (default: 3.0) |
 | `-h`       | Show help                                          |
 
+
 Press `Ctrl+C` to exit.
 
 ### Examples
@@ -88,6 +89,28 @@ Press `Ctrl+C` to exit.
 ./house3d -f -p          # filled faces with perspective
 ./house3d -b -s 5.0      # both mode, faster rotation
 ```
+
+## Examples
+
+Below are GIFs showing each rendering mode, with the exact command used:
+
+**Wireframe (Orthographic):**
+```bash
+./house3d -w
+```
+![Wireframe](gifs/Wireframe.gif)
+
+**Filled Faces with Perspective:**
+```bash
+./house3d -f -p
+```
+![Filled Faces with Perspective](gifs/Filled%20Faces%20with%20Perspective.gif)
+
+**Both Mode (Orthographic):**
+```bash
+./house3d -b
+```
+![Both Mode Orthographic](gifs/Both%20Mode%20Orthographic.gif)
 
 ## Source Files
 
