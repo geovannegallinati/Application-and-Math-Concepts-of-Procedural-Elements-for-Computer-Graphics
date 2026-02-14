@@ -112,15 +112,24 @@ int main(int argc, char *argv[])
     fflush(stdout);
     while (1)
     {
+        char info_text[256];
+        int text_len, padding;
         fb_clear(&fb);
         pipeline_render_frame(&model, &fb, &proj, angle_y, angle_x, mode);
         fb_display(&fb);
-        printf("  3D ASCII House | Ry=%.0f° Rx=%.0f° | %s | %s\n", angle_y * 180.0 / M_PI,
-               angle_x * 180.0 / M_PI,
-               mode == RENDER_WIREFRAME ? "Wireframe"
-               : mode == RENDER_FILLED  ? "Filled"
-                                        : "Both",
-               use_perspective ? "Perspective" : "Orthographic");
+        snprintf(info_text, sizeof(info_text),
+                 "3D ASCII House | Ry=%.0f° Rx=%.0f° | %s | %s",
+                 angle_y * 180.0 / M_PI,
+                 angle_x * 180.0 / M_PI,
+                 mode == RENDER_WIREFRAME ? "Wireframe"
+                 : mode == RENDER_FILLED  ? "Filled"
+                                          : "Both",
+                 use_perspective ? "Perspective" : "Orthographic");
+        text_len = strlen(info_text);
+        padding = (FB_WIDTH - text_len) / 2;
+        if (padding < 0)
+            padding = 0;
+        printf("%*s%s\n", padding, "", info_text);
         angle_y += DEG_TO_RAD(speed_deg);
         if (angle_y >= 2.0 * M_PI)
             angle_y -= 2.0 * M_PI;
