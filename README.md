@@ -98,19 +98,19 @@ Below are GIFs showing each rendering mode, with the exact command used:
 ```bash
 ./house3d -w
 ```
-![Wireframe](gifs/Wireframe.gif)
+![Wireframe](gifs/Wireframe.gif?v=2)
 
 **Filled Faces with Perspective:**
 ```bash
 ./house3d -f -p
 ```
-![Filled Faces with Perspective](gifs/Filled%20Faces%20with%20Perspective.gif)
+![Filled Faces with Perspective](gifs/Filled%20Faces%20with%20Perspective.gif?v=2)
 
 **Both Mode (Orthographic):**
 ```bash
 ./house3d -b
 ```
-![Both Mode Orthographic](gifs/Both%20Mode%20Orthographic.gif)
+![Both Mode Orthographic](gifs/Both%20Mode%20Orthographic.gif?v=2)
 
 ## Source Files
 
