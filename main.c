@@ -41,9 +41,8 @@ static void print_usage(const char *prog)
     fprintf(stderr, "\n");
     fprintf(stderr, "  Ctrl+C to exit\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "Based on: Procedural Elements for Computer Graphics\n");
-    fprintf(stderr, "          David F. Rogers, 2nd edition\n");
 }
+
 int main(int argc, char *argv[])
 {
     Model model;
@@ -116,7 +115,7 @@ int main(int argc, char *argv[])
         fb_clear(&fb);
         pipeline_render_frame(&model, &fb, &proj, angle_y, angle_x, mode);
         fb_display(&fb);
-        printf("  3D ASCII House | Rogers | Ry=%.0f° Rx=%.0f° | %s | %s\n", angle_y * 180.0 / M_PI,
+        printf("  3D ASCII House | Ry=%.0f° Rx=%.0f° | %s | %s\n", angle_y * 180.0 / M_PI,
                angle_x * 180.0 / M_PI,
                mode == RENDER_WIREFRAME ? "Wireframe"
                : mode == RENDER_FILLED  ? "Filled"
