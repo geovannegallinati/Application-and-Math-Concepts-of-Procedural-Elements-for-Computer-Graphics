@@ -27,6 +27,8 @@ The full mathematical documentation with paired C code explanations is available
 
 The project is written in C99 with no external dependencies. All source files are in the root directory.
 
+To build the project, you only need a C compiler. Compilation steps are provided below:
+
 ### macOS
 
 GCC is included with [Xcode Command Line Tools](https://developer.apple.com/xcode/resources/). Install with:
