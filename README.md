@@ -2,6 +2,12 @@
 
 A pure C implementation of a real-time 3D rendering pipeline that displays a rotating house in the terminal using ASCII characters.
 
+No GPU programming, shaders, or modern rendering techniques. Purely algorithmic, no OpenGL, Vulkan, or DirectX.
+
+No libraries, no dependencies, just math and code.
+
+That said, the math hasn't changed. These are the same foundations that power every modern graphics engine.
+
 The full mathematical documentation with paired C code explanations is available as a PDF:
 
 [Application and Math Concepts of Procedural Elements for Computer Graphics.pdf](docs/Application%20and%20Math%20Concepts%20of%20Procedural%20Elements%20for%20Computer%20Graphics.pdf)
